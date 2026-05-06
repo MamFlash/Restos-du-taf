@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Les Restos du Taf 🍽️</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ✅ Config Firebase — déjà branchée
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6s6wtOjC67Lhvi8uLhT3QHJ4ddaiy9_Y",
+      authDomain: "les-restos-du-taf.firebaseapp.com",
+      projectId: "les-restos-du-taf",
+      storageBucket: "les-restos-du-taf.firebasestorage.app",
+      messagingSenderId: "850263725777",
+      appId: "1:850263725777:web:e6d0425ce8f2f60a6657f0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.__firebase = {
+      auth, db,
+      GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword,
+      createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile,
+      collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
+      onSnapshot, query, orderBy, where, serverTimestamp
+    };
+    window.__firebaseReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <!-- App -->
+  <script type="text/babel" src="app.js"></script>
+</body>
+</html>
