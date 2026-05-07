@@ -1,5 +1,6 @@
 const { useState, useEffect } = React;
 
+// ── CONSTANTES ──
 const CE = {
   'Français':'🥐','Italien':'🍝','Japonais':'🍣','Thaïlandais':'🍜',
   'Indien':'🍛','Mexicain':'🌮','Américain':'🍔','Chinois':'🥡',
@@ -8,8 +9,19 @@ const CE = {
 };
 const CUISINES = Object.keys(CE);
 const PL = [{v:1,l:'€ Bon marché'},{v:2,l:'€€ Moyen'},{v:3,l:'€€€ Cher'}];
+const DEFAULT_CRITERIA = ['🌿 Végétarien','☀️ Terrasse','🛵 Livraison','♿ PMR','📶 Wifi','📅 Réservation'];
 
-/* ── Toast ── */
+// ── THEME ──
+function useTheme() {
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
+  return [dark, () => setDark(d => !d)];
+}
+
+// ── TOAST ──
 function Toast({ msg, type, onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 3200); return () => clearTimeout(t); }, []);
   return (
@@ -20,7 +32,7 @@ function Toast({ msg, type, onClose }) {
   );
 }
 
-/* ── Stars ── */
+// ── STARS ──
 function Stars({ value=0, onChange, readonly=false, size='md' }) {
   const [hov, setHov] = useState(0);
   const fs = { sm:13, md:15, lg:22, xl:26 }[size] || 15;
@@ -29,7 +41,7 @@ function Stars({ value=0, onChange, readonly=false, size='md' }) {
       {[1,2,3,4,5].map(i => (
         <span key={i}
           className={`star ${(hov||value) >= i ? 'on' : ''}`}
-          style={{ fontSize: fs, cursor: readonly ? 'default' : 'pointer' }}
+          style={{ fontSize:fs, cursor:readonly?'default':'pointer' }}
           onClick={() => !readonly && onChange?.(i)}
           onMouseEnter={() => !readonly && setHov(i)}
           onMouseLeave={() => !readonly && setHov(0)}
@@ -39,7 +51,80 @@ function Stars({ value=0, onChange, readonly=false, size='md' }) {
   );
 }
 
-/* ── Auth Screen ── */
+// ── LIGHTBOX ──
+function Lightbox({ src, onClose }) {
+  useEffect(() => {
+    const fn = e => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, []);
+  return (
+    <div className="lightbox" onClick={onClose}>
+      <button className="lightbox-close" onClick={onClose}>×</button>
+      <img src={src} alt="" onClick={e => e.stopPropagation()} />
+    </div>
+  );
+}
+
+// ── IMAGE URL INPUT ──
+function ImageInput({ label, value, onChange, placeholder }) {
+  const [valid, setValid] = useState(true);
+  function check(url) {
+    if (!url) { setValid(true); onChange(''); return; }
+    const img = new Image();
+    img.onload = () => { setValid(true); onChange(url); };
+    img.onerror = () => setValid(false);
+    img.src = url;
+  }
+  return (
+    <div className="fr">
+      {label && <label>{label}</label>}
+      <input className="f" defaultValue={value} onBlur={e => check(e.target.value)} placeholder={placeholder || 'https://example.com/photo.jpg'} />
+      {!valid && <p style={{fontSize:12,color:'var(--red)',marginTop:4}}>⚠️ URL invalide ou image inaccessible</p>}
+      {value && valid && <img src={value} className="img-preview" alt="preview" onError={() => setValid(false)} />}
+    </div>
+  );
+}
+
+// ── CRITERIA SELECTOR ──
+function CriteriaSelector({ selected=[], onChange, customList=[] }) {
+  const [newCrit, setNewCrit] = useState('');
+  const all = [...DEFAULT_CRITERIA, ...customList.filter(c => !DEFAULT_CRITERIA.includes(c))];
+
+  function toggle(c) {
+    onChange(selected.includes(c) ? selected.filter(x => x !== c) : [...selected, c]);
+  }
+  function addCustom() {
+    const val = newCrit.trim();
+    if (!val || all.includes(val)) return;
+    onChange([...selected, val]);
+    setNewCrit('');
+  }
+
+  return (
+    <div>
+      <div style={{display:'flex', flexWrap:'wrap', gap:8, marginBottom:10}}>
+        {all.map(c => (
+          <button key={c} type="button"
+            className={`btn sm ${selected.includes(c) ? 'primary' : 'ghost'}`}
+            style={{borderRadius:20, padding:'5px 12px', fontSize:12}}
+            onClick={() => toggle(c)}
+          >{c}</button>
+        ))}
+      </div>
+      <div style={{display:'flex', gap:8}}>
+        <input className="f" value={newCrit} onChange={e => setNewCrit(e.target.value)}
+          placeholder="+ Ajouter un critère personnalisé"
+          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCustom())}
+          style={{fontSize:13}}
+        />
+        <button type="button" className="btn ghost sm" onClick={addCustom} style={{flexShrink:0}}>Ajouter</button>
+      </div>
+    </div>
+  );
+}
+
+// ── AUTH SCREEN ──
 function AuthScreen({ fb, onToast }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -49,12 +134,12 @@ function AuthScreen({ fb, onToast }) {
   const [loading, setLoading] = useState(false);
 
   const frErr = code => ({
-    'auth/email-already-in-use': 'Email déjà utilisé.',
-    'auth/weak-password': 'Mot de passe trop court (6 min).',
-    'auth/user-not-found': 'Aucun compte avec cet email.',
-    'auth/wrong-password': 'Mot de passe incorrect.',
-    'auth/invalid-email': 'Email invalide.',
-    'auth/invalid-credential': 'Identifiants incorrects.',
+    'auth/email-already-in-use':'Email déjà utilisé.',
+    'auth/weak-password':'Mot de passe trop court (6 min).',
+    'auth/user-not-found':'Aucun compte avec cet email.',
+    'auth/wrong-password':'Mot de passe incorrect.',
+    'auth/invalid-email':'Email invalide.',
+    'auth/invalid-credential':'Identifiants incorrects.',
   }[code] || 'Erreur, réessaie.');
 
   async function handleEmail(e) {
@@ -95,17 +180,14 @@ function AuthScreen({ fb, onToast }) {
         {err && <div className="err">{err}</div>}
         <form onSubmit={handleEmail}>
           {mode === 'register' && (
-            <div className="ig">
-              <label>Prénom / Pseudo</label>
+            <div className="ig"><label>Prénom / Pseudo</label>
               <input className="f" value={name} onChange={e => setName(e.target.value)} placeholder="Alex" required />
             </div>
           )}
-          <div className="ig">
-            <label>Email</label>
+          <div className="ig"><label>Email</label>
             <input className="f" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="alex@boite.fr" required />
           </div>
-          <div className="ig">
-            <label>Mot de passe</label>
+          <div className="ig"><label>Mot de passe</label>
             <input className="f" type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="••••••••" required />
           </div>
           <button className="btn primary full" type="submit" disabled={loading}>
@@ -125,20 +207,24 @@ function AuthScreen({ fb, onToast }) {
         <div className="auth-sw">
           {mode === 'login'
             ? <><span>Pas de compte ? </span><a onClick={() => setMode('register')}>S'inscrire</a></>
-            : <><span>Déjà un compte ? </span><a onClick={() => setMode('login')}>Se connecter</a></>
-          }
+            : <><span>Déjà un compte ? </span><a onClick={() => setMode('login')}>Se connecter</a></>}
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Add/Edit Restaurant Modal ── */
-function RestoModal({ fb, user, resto, onClose, onToast }) {
+// ── ADD/EDIT RESTAURANT MODAL ──
+function RestoModal({ fb, user, resto, allCriteria, onClose, onToast }) {
   const isEdit = !!resto;
   const [form, setForm] = useState({
-    name: resto?.name || '', cuisine: resto?.cuisine || 'Français',
-    address: resto?.address || '', priceLevel: resto?.priceLevel || 1, notes: resto?.notes || ''
+    name: resto?.name || '',
+    cuisine: resto?.cuisine || 'Français',
+    address: resto?.address || '',
+    priceLevel: resto?.priceLevel || 1,
+    notes: resto?.notes || '',
+    photoURL: resto?.photoURL || '',
+    criteria: resto?.criteria || [],
   });
   const [loading, setLoading] = useState(false);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -147,7 +233,12 @@ function RestoModal({ fb, user, resto, onClose, onToast }) {
     if (!form.name.trim()) return;
     setLoading(true);
     try {
-      const d = { ...form, priceLevel: Number(form.priceLevel), emoji: CE[form.cuisine] || '🍽️', updatedAt: fb.serverTimestamp() };
+      const d = {
+        ...form,
+        priceLevel: Number(form.priceLevel),
+        emoji: CE[form.cuisine] || '🍽️',
+        updatedAt: fb.serverTimestamp()
+      };
       if (isEdit) {
         await fb.updateDoc(fb.doc(fb.db, 'restaurants', resto.id), d);
         onToast('Restaurant mis à jour ✓', 'success');
@@ -171,13 +262,46 @@ function RestoModal({ fb, user, resto, onClose, onToast }) {
           <button className="mclose" onClick={onClose}>×</button>
         </div>
         <div className="mbody">
-          <div className="fr"><label>Nom *</label><input className="f" value={form.name} onChange={set('name')} placeholder="Le Petit Bistrot" /></div>
-          <div className="fr two">
-            <div><label>Cuisine</label><select className="f" value={form.cuisine} onChange={set('cuisine')}>{CUISINES.map(c => <option key={c}>{c}</option>)}</select></div>
-            <div><label>Budget</label><select className="f" value={form.priceLevel} onChange={set('priceLevel')}>{PL.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}</select></div>
+          <div className="fr"><label>Nom *</label>
+            <input className="f" value={form.name} onChange={set('name')} placeholder="Le Petit Bistrot" />
           </div>
-          <div className="fr"><label>Adresse</label><input className="f" value={form.address} onChange={set('address')} placeholder="12 rue de la Paix" /></div>
-          <div className="fr"><label>Notes (optionnel)</label><textarea className="f" value={form.notes} onChange={set('notes')} placeholder="Réservation conseillée…" /></div>
+          <div className="fr two">
+            <div><label>Cuisine</label>
+              <select className="f" value={form.cuisine} onChange={set('cuisine')}>
+                {CUISINES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div><label>Budget</label>
+              <select className="f" value={form.priceLevel} onChange={set('priceLevel')}>
+                {PL.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="fr"><label>Adresse</label>
+            <input className="f" value={form.address} onChange={set('address')} placeholder="12 rue de la Paix" />
+          </div>
+
+          {/* Photo */}
+          <ImageInput
+            label="Photo du restaurant (URL)"
+            value={form.photoURL}
+            onChange={url => setForm(f => ({ ...f, photoURL: url }))}
+          />
+
+          {/* Critères */}
+          <div className="fr">
+            <label>Critères</label>
+            <CriteriaSelector
+              selected={form.criteria}
+              onChange={c => setForm(f => ({ ...f, criteria: c }))}
+              customList={allCriteria}
+            />
+          </div>
+
+          <div className="fr"><label>Notes (optionnel)</label>
+            <textarea className="f" value={form.notes} onChange={set('notes')} placeholder="Réservation conseillée…" />
+          </div>
+
           <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
             <button className="btn ghost sm" onClick={onClose}>Annuler</button>
             <button className="btn primary sm" onClick={save} disabled={loading || !form.name.trim()}>
@@ -190,13 +314,15 @@ function RestoModal({ fb, user, resto, onClose, onToast }) {
   );
 }
 
-/* ── Restaurant Detail ── */
+// ── RESTAURANT DETAIL ──
 function RestoDetail({ fb, user, resto, onClose, onToast }) {
   const [reviews, setReviews] = useState([]);
   const [myR, setMyR] = useState(0);
   const [myCom, setMyCom] = useState('');
+  const [myPhotos, setMyPhotos] = useState(['']);
   const [myRev, setMyRev] = useState(null);
   const [sub, setSub] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
     const q = fb.query(fb.collection(fb.db, 'reviews'), fb.where('restaurantId', '==', resto.id), fb.orderBy('createdAt', 'desc'));
@@ -204,24 +330,32 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setReviews(all);
       const mine = all.find(r => r.userId === user.uid);
-      if (mine) { setMyRev(mine); setMyR(mine.rating); setMyCom(mine.comment || ''); }
+      if (mine) {
+        setMyRev(mine); setMyR(mine.rating);
+        setMyCom(mine.comment || '');
+        setMyPhotos(mine.photos?.length ? mine.photos : ['']);
+      }
     });
   }, [resto.id]);
 
   async function submit() {
     if (!myR) return; setSub(true);
     try {
+      const photos = myPhotos.filter(p => p.trim());
       const d = {
         restaurantId: resto.id, userId: user.uid,
         userName: user.displayName || user.email, userPhoto: user.photoURL || null,
-        rating: myR, comment: myCom, createdAt: fb.serverTimestamp()
+        rating: myR, comment: myCom, photos,
+        createdAt: fb.serverTimestamp()
       };
       if (myRev) await fb.updateDoc(fb.doc(fb.db, 'reviews', myRev.id), d);
       else await fb.addDoc(fb.collection(fb.db, 'reviews'), d);
       const snap = await fb.getDocs(fb.query(fb.collection(fb.db, 'reviews'), fb.where('restaurantId', '==', resto.id)));
       const all = snap.docs.map(d => d.data());
       const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
-      await fb.updateDoc(fb.doc(fb.db, 'restaurants', resto.id), { avgRating: Math.round(avg * 10) / 10, reviewCount: all.length });
+      await fb.updateDoc(fb.doc(fb.db, 'restaurants', resto.id), {
+        avgRating: Math.round(avg * 10) / 10, reviewCount: all.length
+      });
       onToast('Avis enregistré ✓', 'success');
     } catch(e) { onToast('Erreur', 'error'); }
     setSub(false);
@@ -233,35 +367,76 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
   return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
+        {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
         <div className="mhead">
           <div style={{ flex:1, minWidth:0 }}>
             <h2 className="mtitle">{resto.emoji} {resto.name}</h2>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:6, flexWrap:'wrap' }}>
               <Stars value={Math.round(resto.avgRating || 0)} readonly />
               <span style={{ fontSize:12, color:'var(--text2)' }}>{resto.avgRating ? `${resto.avgRating}/5` : 'Pas encore noté'}</span>
-              <span className="dot" />
-              <span className={`ptag ${pc}`}>{ps}</span>
-              <span className="dot" />
-              <span className="tag">{resto.cuisine}</span>
+              <span className="dot" /><span className={`ptag ${pc}`}>{ps}</span>
+              <span className="dot" /><span className="tag">{resto.cuisine}</span>
             </div>
           </div>
           <button className="mclose" onClick={onClose}>×</button>
         </div>
         <div className="mbody">
-          {resto.address && <div style={{ fontSize:13, color:'var(--text2)', marginBottom:12 }}>📍 {resto.address}</div>}
-          {resto.notes && <div style={{ background:'var(--bg3)', borderRadius:8, padding:'10px 12px', fontSize:13, color:'var(--text2)', marginBottom:14, borderLeft:'3px solid var(--accent)' }}>{resto.notes}</div>}
+          {/* Photo principale */}
+          {resto.photoURL && (
+            <div style={{ margin:'0 0 14px', borderRadius:12, overflow:'hidden', height:180, cursor:'pointer' }} onClick={() => setLightbox(resto.photoURL)}>
+              <img src={resto.photoURL} alt={resto.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+            </div>
+          )}
+
+          {resto.address && <div style={{ fontSize:13, color:'var(--text2)', marginBottom:10 }}>📍 {resto.address}</div>}
+
+          {/* Critères */}
+          {resto.criteria?.length > 0 && (
+            <div className="criteria-list" style={{ marginBottom:12 }}>
+              {resto.criteria.map(c => <span key={c} className="criteria-badge">{c}</span>)}
+            </div>
+          )}
+
+          {resto.notes && (
+            <div style={{ background:'var(--bg3)', borderRadius:8, padding:'10px 12px', fontSize:13, color:'var(--text2)', marginBottom:14, borderLeft:'3px solid var(--accent)' }}>
+              {resto.notes}
+            </div>
+          )}
 
           {/* Mon avis */}
-          <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:14, marginBottom:16 }}>
+          <div style={{ background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:12, padding:14, marginBottom:16 }}>
             <h4 style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{myRev ? '✏️ Mon avis' : '⭐ Laisser un avis'}</h4>
             <Stars value={myR} onChange={setMyR} size="xl" />
-            <textarea className="f" style={{ marginTop:10 }} value={myCom} onChange={e => setMyCom(e.target.value)} placeholder="C'était comment ? (optionnel)" />
-            <button className="btn primary sm" style={{ marginTop:10 }} onClick={submit} disabled={!myR || sub}>
+            <textarea className="f" style={{ marginTop:10 }} value={myCom}
+              onChange={e => setMyCom(e.target.value)} placeholder="C'était comment ? (optionnel)" />
+
+            {/* Photos de l'avis */}
+            <div style={{ marginTop:10 }}>
+              <p style={{ fontSize:11, fontWeight:600, color:'var(--text2)', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6 }}>Photos (URLs)</p>
+              {myPhotos.map((p, i) => (
+                <div key={i} style={{ display:'flex', gap:6, marginBottom:6 }}>
+                  <input className="f" style={{ fontSize:13 }} value={p}
+                    onChange={e => { const a=[...myPhotos]; a[i]=e.target.value; setMyPhotos(a); }}
+                    placeholder="https://example.com/plat.jpg" />
+                  {myPhotos.length > 1 && (
+                    <button type="button" className="btn icon-btn sm danger"
+                      onClick={() => setMyPhotos(myPhotos.filter((_,j) => j !== i))}>×</button>
+                  )}
+                </div>
+              ))}
+              {myPhotos.length < 4 && (
+                <button type="button" className="btn ghost sm" onClick={() => setMyPhotos([...myPhotos, ''])}>
+                  + Ajouter une photo
+                </button>
+              )}
+            </div>
+
+            <button className="btn primary sm" style={{ marginTop:12 }} onClick={submit} disabled={!myR || sub}>
               {sub ? '…' : myRev ? 'Mettre à jour' : 'Publier'}
             </button>
           </div>
 
-          {/* Avis équipe */}
+          {/* Tous les avis */}
           <h4 style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>💬 Avis de l'équipe ({reviews.length})</h4>
           {reviews.length === 0
             ? <p style={{ fontSize:13, color:'var(--text3)', textAlign:'center', padding:'16px 0' }}>Soyez le premier à noter ce restaurant !</p>
@@ -276,6 +451,15 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
                   <span className="rid">{r.createdAt?.toDate?.()?.toLocaleDateString('fr-FR') || ''}</span>
                 </div>
                 {r.comment && <p className="rit">{r.comment}</p>}
+                {r.photos?.filter(p => p).length > 0 && (
+                  <div className="photo-grid" style={{ gridTemplateColumns: `repeat(${Math.min(r.photos.filter(p=>p).length, 3)}, 1fr)` }}>
+                    {r.photos.filter(p => p).map((p, i) => (
+                      <div key={i} className="photo-thumb" onClick={() => setLightbox(p)}>
+                        <img src={p} alt="" onError={e => e.target.parentElement.style.display='none'} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))
           }
@@ -285,7 +469,7 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
   );
 }
 
-/* ── Vote Modal ── */
+// ── VOTE MODAL ──
 function VoteModal({ fb, user, restaurants, onClose, onToast }) {
   const [sessions, setSessions] = useState([]);
   const [creating, setCreating] = useState(false);
@@ -322,7 +506,6 @@ function VoteModal({ fb, user, restaurants, onClose, onToast }) {
   const tog = id => setForm(f => ({
     ...f, options: f.options.includes(id) ? f.options.filter(x => x !== id) : [...f.options, id]
   }));
-
   const rm = Object.fromEntries(restaurants.map(r => [r.id, r]));
 
   return (
@@ -336,10 +519,14 @@ function VoteModal({ fb, user, restaurants, onClose, onToast }) {
           {!creating
             ? <button className="btn primary full" style={{ marginBottom:14 }} onClick={() => setCreating(true)}>➕ Créer une session de vote</button>
             : (
-              <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:14, marginBottom:14 }}>
+              <div style={{ background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:12, padding:14, marginBottom:14 }}>
                 <h4 style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>Nouvelle session</h4>
-                <div className="fr"><label>Titre</label><input className="f" value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Déj' vendredi" /></div>
-                <div className="fr"><label>Date (optionnel)</label><input type="date" className="f" style={{ colorScheme:'dark' }} value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></div>
+                <div className="fr"><label>Titre</label>
+                  <input className="f" value={form.title} onChange={e => setForm({...form, title:e.target.value})} placeholder="Déj' vendredi" />
+                </div>
+                <div className="fr"><label>Date (optionnel)</label>
+                  <input type="date" className="f" style={{ colorScheme:'dark' }} value={form.date} onChange={e => setForm({...form, date:e.target.value})} />
+                </div>
                 <div className="fr">
                   <label>Choix proposés (min 2)</label>
                   <div style={{ maxHeight:170, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
@@ -353,7 +540,9 @@ function VoteModal({ fb, user, restaurants, onClose, onToast }) {
                 </div>
                 <div style={{ display:'flex', gap:8 }}>
                   <button className="btn ghost sm" onClick={() => setCreating(false)}>Annuler</button>
-                  <button className="btn primary sm" onClick={create} disabled={loading || !form.title || form.options.length < 2}>{loading ? '…' : 'Créer'}</button>
+                  <button className="btn primary sm" onClick={create} disabled={loading || !form.title || form.options.length < 2}>
+                    {loading ? '…' : 'Créer'}
+                  </button>
                 </div>
               </div>
             )
@@ -399,8 +588,9 @@ function VoteModal({ fb, user, restaurants, onClose, onToast }) {
   );
 }
 
-/* ── MAIN APP ── */
+// ── MAIN APP ──
 function App() {
+  const [dark, toggleTheme] = useTheme();
   const [fb, setFb] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoad, setAuthLoad] = useState(true);
@@ -409,6 +599,7 @@ function App() {
   const [dataLoad, setDataLoad] = useState(true);
   const [search, setSearch] = useState('');
   const [fc, setFc] = useState('Tous');
+  const [filterCrit, setFilterCrit] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editR, setEditR] = useState(null);
   const [detailR, setDetailR] = useState(null);
@@ -417,6 +608,9 @@ function App() {
   const [toast, setToast] = useState(null);
 
   const T = (msg, type='success') => setToast({ msg, type });
+
+  // Tous les critères utilisés
+  const allCriteria = [...new Set(restos.flatMap(r => r.criteria || []))];
 
   useEffect(() => {
     const init = () => { if (window.__firebaseReady && window.__firebase) setFb(window.__firebase); };
@@ -469,6 +663,7 @@ function App() {
     const q = search.toLowerCase();
     return (!q || r.name.toLowerCase().includes(q) || r.cuisine?.toLowerCase().includes(q))
       && (fc === 'Tous' || r.cuisine === fc)
+      && (!filterCrit || r.criteria?.includes(filterCrit))
       && (page !== 'favorites' || favs.includes(r.id));
   });
 
@@ -476,10 +671,7 @@ function App() {
   const pc = p => ['','p1','p2','p3'][p] || 'p1';
 
   if (!fb || authLoad) return (
-    <div className="loading">
-      <div className="spinner" />
-      <p style={{ color:'var(--text2)', fontSize:14 }}>Chargement…</p>
-    </div>
+    <div className="loading"><div className="spinner" /><p style={{ color:'var(--text2)', fontSize:14 }}>Chargement…</p></div>
   );
   if (!user) return <AuthScreen fb={fb} onToast={T} />;
 
@@ -496,7 +688,7 @@ function App() {
     <div className="app">
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Sidebar desktop */}
+      {/* ── SIDEBAR desktop ── */}
       <nav className="sidebar">
         <div className="s-logo">
           <div className="s-logo-icon">🍽️</div>
@@ -521,11 +713,15 @@ function App() {
               <div className="uemail">{user.email}</div>
             </div>
           </div>
+          {/* Theme toggle */}
+          <button className="theme-btn" onClick={toggleTheme}>
+            {dark ? '☀️ Mode clair' : '🌙 Mode sombre'}
+          </button>
           <button className="btn ghost sm" style={{ width:'100%' }} onClick={() => fb.signOut(fb.auth)}>→ Déconnexion</button>
         </div>
       </nav>
 
-      {/* Main */}
+      {/* ── MAIN ── */}
       <main className="main">
         <div className="ph">
           <div>
@@ -536,7 +732,7 @@ function App() {
                 : `${restos.length} resto${restos.length !== 1 ? 's' : ''} référencé${restos.length !== 1 ? 's' : ''} par l'équipe`}
             </p>
           </div>
-          <button className="btn primary sm" onClick={() => setShowAdd(true)}>➕ Suggérer un resto</button>
+          <button className="btn primary sm add-btn" onClick={() => setShowAdd(true)}>➕ Suggérer un resto</button>
         </div>
 
         {/* Stats */}
@@ -554,7 +750,7 @@ function App() {
           {search && <button className="clr-btn" onClick={() => setSearch('')}>×</button>}
         </div>
 
-        {/* Filtres */}
+        {/* Filtres cuisine */}
         <div className="ftabs">
           {['Tous', ...CUISINES].map(c => (
             <button key={c} className={`ftab ${fc === c ? 'on' : ''}`} onClick={() => setFc(c)}>
@@ -562,6 +758,16 @@ function App() {
             </button>
           ))}
         </div>
+
+        {/* Filtres critères */}
+        {allCriteria.length > 0 && (
+          <div className="ftabs" style={{ marginBottom:20 }}>
+            <button className={`ftab ${!filterCrit ? 'on' : ''}`} onClick={() => setFilterCrit('')}>Tous les critères</button>
+            {allCriteria.map(c => (
+              <button key={c} className={`ftab ${filterCrit === c ? 'on' : ''}`} onClick={() => setFilterCrit(filterCrit === c ? '' : c)}>{c}</button>
+            ))}
+          </div>
+        )}
 
         {/* Grid */}
         {dataLoad
@@ -581,7 +787,8 @@ function App() {
                   return (
                     <div key={r.id} className="rcard" onClick={() => setDetailR(r)}>
                       <div className="rcard-img">
-                        <span style={{ fontSize:44 }}>{r.emoji || '🍽️'}</span>
+                        {r.photoURL && <img src={r.photoURL} alt={r.name} onError={e => e.target.style.display='none'} />}
+                        <span className="emoji-fallback">{r.emoji || '🍽️'}</span>
                         <div className={`rbadge ${isFav ? 'fav' : ''}`}>{isFav ? '❤️' : '☆'}</div>
                       </div>
                       <div className="rcard-body">
@@ -592,6 +799,13 @@ function App() {
                           <span className={`ptag ${pc(r.priceLevel)}`}>{ps(r.priceLevel)}</span>
                           {r.address && <><span className="dot" /><span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:110, fontSize:11 }}>📍 {r.address}</span></>}
                         </div>
+                        {/* Critères sur la carte */}
+                        {r.criteria?.length > 0 && (
+                          <div className="criteria-list" style={{ marginBottom:8 }}>
+                            {r.criteria.slice(0, 3).map(c => <span key={c} className="criteria-badge" style={{ fontSize:11, padding:'2px 8px' }}>{c}</span>)}
+                            {r.criteria.length > 3 && <span className="criteria-badge" style={{ fontSize:11, padding:'2px 8px' }}>+{r.criteria.length - 3}</span>}
+                          </div>
+                        )}
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <Stars value={Math.round(r.avgRating || 0)} readonly size="sm" />
                           <span style={{ fontSize:12, color:'var(--text2)' }}>{r.avgRating ? `${r.avgRating}/5` : 'Non noté'}</span>
@@ -615,22 +829,22 @@ function App() {
         }
       </main>
 
-      {/* Bottom nav mobile */}
+      {/* ── BOTTOM NAV mobile ── */}
       <nav className="bnav">
         <div className="bnav-inner">
           <button className={`bnav-item ${page === 'restaurants' ? 'on' : ''}`} onClick={() => bnav('restaurants')}><span className="bni">🏪</span><span>Restos</span></button>
           <button className={`bnav-item ${page === 'favorites' ? 'on' : ''}`} onClick={() => bnav('favorites')}><span className="bni">❤️</span><span>Favoris</span></button>
           <button className="bnav-fab" onClick={() => bnav('add')}><div className="fab">➕</div></button>
           <button className={`bnav-item ${showVote ? 'on' : ''}`} onClick={() => bnav('vote')}><span className="bni">🗳️</span><span>Voter</span></button>
-          <button className="bnav-item" onClick={() => bnav('account')}><span className="bni">👤</span><span>Compte</span></button>
+          <button className="bnav-item" onClick={toggleTheme}><span className="bni">{dark ? '☀️' : '🌙'}</span><span>Thème</span></button>
         </div>
       </nav>
 
-      {/* Modals */}
-      {showAdd   && <RestoModal fb={fb} user={user} onClose={() => setShowAdd(false)} onToast={T} />}
-      {editR     && <RestoModal fb={fb} user={user} resto={editR} onClose={() => setEditR(null)} onToast={T} />}
-      {detailR   && <RestoDetail fb={fb} user={user} resto={detailR} onClose={() => setDetailR(null)} onToast={T} />}
-      {showVote  && <VoteModal fb={fb} user={user} restaurants={restos} onClose={() => setShowVote(false)} onToast={T} />}
+      {/* ── MODALS ── */}
+      {showAdd  && <RestoModal fb={fb} user={user} allCriteria={allCriteria} onClose={() => setShowAdd(false)} onToast={T} />}
+      {editR    && <RestoModal fb={fb} user={user} resto={editR} allCriteria={allCriteria} onClose={() => setEditR(null)} onToast={T} />}
+      {detailR  && <RestoDetail fb={fb} user={user} resto={detailR} onClose={() => setDetailR(null)} onToast={T} />}
+      {showVote && <VoteModal fb={fb} user={user} restaurants={restos} onClose={() => setShowVote(false)} onToast={T} />}
     </div>
   );
 }
