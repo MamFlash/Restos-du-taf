@@ -66,6 +66,40 @@ function Lightbox({ src, onClose }) {
   );
 }
 
+// ── MAP COMPONENT ──
+function MapView({ address }) {
+  const [show, setShow] = useState(false);
+  if (!address) return null;
+
+  const encoded = encodeURIComponent(address);
+  const mapsUrl = `https://www.openstreetmap.org/search?query=${encoded}`;
+  const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=-0.1,48.8,0.1,48.9&layer=mapnik&marker=&query=${encoded}`;
+  const embedSrc = `https://nominatim.openstreetmap.org/search?q=${encoded}&format=html&limit=1`;
+
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+        <span style={{ fontSize:13, color:'var(--text2)' }}>📍 {address}</span>
+        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="map-btn">
+          🗺️ Voir sur la carte
+        </a>
+        <button className="map-btn" onClick={() => setShow(s => !s)}>
+          {show ? '▲ Masquer' : '▼ Afficher la carte'}
+        </button>
+      </div>
+      {show && (
+        <iframe
+          className="map-frame"
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=-0.15,48.8,0.15,48.95&layer=mapnik&query=${encoded}&zoom=15`}
+          title="Carte OpenStreetMap"
+          loading="lazy"
+          allowFullScreen
+        />
+      )}
+    </div>
+  );
+}
+
 // ── IMAGE URL INPUT ──
 function ImageInput({ label, value, onChange, placeholder }) {
   const [valid, setValid] = useState(true);
@@ -278,17 +312,13 @@ function RestoModal({ fb, user, resto, allCriteria, onClose, onToast }) {
             </div>
           </div>
           <div className="fr"><label>Adresse</label>
-            <input className="f" value={form.address} onChange={set('address')} placeholder="12 rue de la Paix" />
+            <input className="f" value={form.address} onChange={set('address')} placeholder="12 rue de la Paix, Paris" />
           </div>
-
-          {/* Photo */}
           <ImageInput
             label="Photo du restaurant (URL)"
             value={form.photoURL}
             onChange={url => setForm(f => ({ ...f, photoURL: url }))}
           />
-
-          {/* Critères */}
           <div className="fr">
             <label>Critères</label>
             <CriteriaSelector
@@ -297,11 +327,9 @@ function RestoModal({ fb, user, resto, allCriteria, onClose, onToast }) {
               customList={allCriteria}
             />
           </div>
-
           <div className="fr"><label>Notes (optionnel)</label>
             <textarea className="f" value={form.notes} onChange={set('notes')} placeholder="Réservation conseillée…" />
           </div>
-
           <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
             <button className="btn ghost sm" onClick={onClose}>Annuler</button>
             <button className="btn primary sm" onClick={save} disabled={loading || !form.name.trim()}>
@@ -381,14 +409,17 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
           <button className="mclose" onClick={onClose}>×</button>
         </div>
         <div className="mbody">
+
           {/* Photo principale */}
           {resto.photoURL && (
-            <div style={{ margin:'0 0 14px', borderRadius:12, overflow:'hidden', height:180, cursor:'pointer' }} onClick={() => setLightbox(resto.photoURL)}>
+            <div style={{ margin:'0 0 14px', borderRadius:12, overflow:'hidden', height:180, cursor:'pointer' }}
+              onClick={() => setLightbox(resto.photoURL)}>
               <img src={resto.photoURL} alt={resto.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
             </div>
           )}
 
-          {resto.address && <div style={{ fontSize:13, color:'var(--text2)', marginBottom:10 }}>📍 {resto.address}</div>}
+          {/* Adresse + carte OpenStreetMap */}
+          {resto.address && <MapView address={resto.address} />}
 
           {/* Critères */}
           {resto.criteria?.length > 0 && (
@@ -409,10 +440,8 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
             <Stars value={myR} onChange={setMyR} size="xl" />
             <textarea className="f" style={{ marginTop:10 }} value={myCom}
               onChange={e => setMyCom(e.target.value)} placeholder="C'était comment ? (optionnel)" />
-
-            {/* Photos de l'avis */}
             <div style={{ marginTop:10 }}>
-              <p style={{ fontSize:11, fontWeight:600, color:'var(--text2)', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6 }}>Photos (URLs)</p>
+              <p style={{ fontSize:11, fontWeight:600, color:'var(--text2)', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6 }}>Photos (URLs, optionnel)</p>
               {myPhotos.map((p, i) => (
                 <div key={i} style={{ display:'flex', gap:6, marginBottom:6 }}>
                   <input className="f" style={{ fontSize:13 }} value={p}
@@ -425,12 +454,10 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
                 </div>
               ))}
               {myPhotos.length < 4 && (
-                <button type="button" className="btn ghost sm" onClick={() => setMyPhotos([...myPhotos, ''])}>
-                  + Ajouter une photo
-                </button>
+                <button type="button" className="btn ghost sm" style={{ marginTop:4 }}
+                  onClick={() => setMyPhotos([...myPhotos, ''])}>+ Ajouter une photo</button>
               )}
             </div>
-
             <button className="btn primary sm" style={{ marginTop:12 }} onClick={submit} disabled={!myR || sub}>
               {sub ? '…' : myRev ? 'Mettre à jour' : 'Publier'}
             </button>
@@ -452,7 +479,7 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
                 </div>
                 {r.comment && <p className="rit">{r.comment}</p>}
                 {r.photos?.filter(p => p).length > 0 && (
-                  <div className="photo-grid" style={{ gridTemplateColumns: `repeat(${Math.min(r.photos.filter(p=>p).length, 3)}, 1fr)` }}>
+                  <div className="photo-grid" style={{ gridTemplateColumns:`repeat(${Math.min(r.photos.filter(p=>p).length, 3)}, 1fr)` }}>
                     {r.photos.filter(p => p).map((p, i) => (
                       <div key={i} className="photo-thumb" onClick={() => setLightbox(p)}>
                         <img src={p} alt="" onError={e => e.target.parentElement.style.display='none'} />
@@ -462,125 +489,6 @@ function RestoDetail({ fb, user, resto, onClose, onToast }) {
                 )}
               </div>
             ))
-          }
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── VOTE MODAL ──
-function VoteModal({ fb, user, restaurants, onClose, onToast }) {
-  const [sessions, setSessions] = useState([]);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title:'', date:'', options:[] });
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    return fb.onSnapshot(
-      fb.query(fb.collection(fb.db, 'votes'), fb.orderBy('createdAt', 'desc')),
-      snap => setSessions(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-  }, []);
-
-  async function create() {
-    if (!form.title || form.options.length < 2) return;
-    setLoading(true);
-    try {
-      await fb.addDoc(fb.collection(fb.db, 'votes'), {
-        title: form.title, date: form.date, options: form.options, votes: {},
-        createdBy: user.uid, createdByName: user.displayName || user.email,
-        createdAt: fb.serverTimestamp(), active: true
-      });
-      setCreating(false); setForm({ title:'', date:'', options:[] });
-      onToast('Session créée ! 🗳️', 'success');
-    } catch(e) { onToast('Erreur', 'error'); }
-    setLoading(false);
-  }
-
-  async function vote(sid, rid) {
-    await fb.updateDoc(fb.doc(fb.db, 'votes', sid), { [`votes.${user.uid}`]: rid });
-    onToast('Vote enregistré ✓', 'success');
-  }
-
-  const tog = id => setForm(f => ({
-    ...f, options: f.options.includes(id) ? f.options.filter(x => x !== id) : [...f.options, id]
-  }));
-  const rm = Object.fromEntries(restaurants.map(r => [r.id, r]));
-
-  return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="mhead">
-          <h2 className="mtitle">🗳️ Votes déjeuner</h2>
-          <button className="mclose" onClick={onClose}>×</button>
-        </div>
-        <div className="mbody">
-          {!creating
-            ? <button className="btn primary full" style={{ marginBottom:14 }} onClick={() => setCreating(true)}>➕ Créer une session de vote</button>
-            : (
-              <div style={{ background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:12, padding:14, marginBottom:14 }}>
-                <h4 style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>Nouvelle session</h4>
-                <div className="fr"><label>Titre</label>
-                  <input className="f" value={form.title} onChange={e => setForm({...form, title:e.target.value})} placeholder="Déj' vendredi" />
-                </div>
-                <div className="fr"><label>Date (optionnel)</label>
-                  <input type="date" className="f" style={{ colorScheme:'dark' }} value={form.date} onChange={e => setForm({...form, date:e.target.value})} />
-                </div>
-                <div className="fr">
-                  <label>Choix proposés (min 2)</label>
-                  <div style={{ maxHeight:170, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
-                    {restaurants.map(r => (
-                      <label key={r.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', background:'var(--bg2)', borderRadius:8, cursor:'pointer', border:`1px solid ${form.options.includes(r.id) ? 'var(--accent)' : 'var(--border)'}` }}>
-                        <input type="checkbox" checked={form.options.includes(r.id)} onChange={() => tog(r.id)} style={{ accentColor:'var(--accent)', width:16, height:16 }} />
-                        <span style={{ fontSize:14 }}>{r.emoji} {r.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ display:'flex', gap:8 }}>
-                  <button className="btn ghost sm" onClick={() => setCreating(false)}>Annuler</button>
-                  <button className="btn primary sm" onClick={create} disabled={loading || !form.title || form.options.length < 2}>
-                    {loading ? '…' : 'Créer'}
-                  </button>
-                </div>
-              </div>
-            )
-          }
-          {sessions.length === 0
-            ? <div className="empty"><div className="ei">🗳️</div><p>Aucune session active.<br />Crée-en une pour le prochain déj' collectif !</p></div>
-            : sessions.map(s => {
-              const tot = Object.keys(s.votes || {}).length;
-              const myV = s.votes?.[user.uid];
-              return (
-                <div key={s.id} className="vsession">
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-                    <h4 style={{ fontFamily:'Syne', fontWeight:700, fontSize:15 }}>{s.title}</h4>
-                    <span style={{ fontSize:11, color:'var(--text3)' }}>{tot} vote{tot !== 1 ? 's' : ''}</span>
-                  </div>
-                  {s.date && <p style={{ fontSize:12, color:'var(--text3)', marginBottom:10 }}>📅 {new Date(s.date).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' })}</p>}
-                  {(s.options || []).map(rid => {
-                    const r = rm[rid]; if (!r) return null;
-                    const cnt = Object.values(s.votes || {}).filter(v => v === rid).length;
-                    const pct = tot > 0 ? (cnt / tot) * 100 : 0;
-                    return (
-                      <div key={rid} className={`vopt ${myV === rid ? 'on' : ''}`} onClick={() => vote(s.id, rid)}>
-                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <span>{r.emoji}</span>
-                          <span style={{ fontSize:14, fontWeight:500 }}>{r.name}</span>
-                          {myV === rid && <span style={{ fontSize:10, color:'var(--green)' }}>✓</span>}
-                        </div>
-                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <div className="vbw"><div className="vb" style={{ width:`${pct}%` }} /></div>
-                          <span style={{ fontSize:12, color:'var(--text2)', minWidth:14, textAlign:'right' }}>{cnt}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p style={{ fontSize:11, color:'var(--text3)', marginTop:6 }}>Par {s.createdByName}</p>
-                </div>
-              );
-            })
           }
         </div>
       </div>
@@ -603,13 +511,10 @@ function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [editR, setEditR] = useState(null);
   const [detailR, setDetailR] = useState(null);
-  const [showVote, setShowVote] = useState(false);
   const [favs, setFavs] = useState([]);
   const [toast, setToast] = useState(null);
 
   const T = (msg, type='success') => setToast({ msg, type });
-
-  // Tous les critères utilisés
   const allCriteria = [...new Set(restos.flatMap(r => r.criteria || []))];
 
   useEffect(() => {
@@ -679,7 +584,6 @@ function App() {
 
   function bnav(id) {
     if (id === 'add') { setShowAdd(true); return; }
-    if (id === 'vote') { setShowVote(true); return; }
     if (id === 'account') { if (confirm('Se déconnecter ?')) fb.signOut(fb.auth); return; }
     setPage(id);
   }
@@ -702,9 +606,6 @@ function App() {
             <span className="nav-icon">{n.icon}</span>{n.l}
           </div>
         ))}
-        <div className={`nav-item ${showVote ? 'on' : ''}`} onClick={() => setShowVote(true)}>
-          <span className="nav-icon">🗳️</span>Votes déjeuner
-        </div>
         <div className="s-bottom">
           <div className="ucard">
             <div className="avatar">{user.photoURL ? <img src={user.photoURL} alt="" /> : ini}</div>
@@ -713,7 +614,6 @@ function App() {
               <div className="uemail">{user.email}</div>
             </div>
           </div>
-          {/* Theme toggle */}
           <button className="theme-btn" onClick={toggleTheme}>
             {dark ? '☀️ Mode clair' : '🌙 Mode sombre'}
           </button>
@@ -764,7 +664,8 @@ function App() {
           <div className="ftabs" style={{ marginBottom:20 }}>
             <button className={`ftab ${!filterCrit ? 'on' : ''}`} onClick={() => setFilterCrit('')}>Tous les critères</button>
             {allCriteria.map(c => (
-              <button key={c} className={`ftab ${filterCrit === c ? 'on' : ''}`} onClick={() => setFilterCrit(filterCrit === c ? '' : c)}>{c}</button>
+              <button key={c} className={`ftab ${filterCrit === c ? 'on' : ''}`}
+                onClick={() => setFilterCrit(filterCrit === c ? '' : c)}>{c}</button>
             ))}
           </div>
         )}
@@ -799,7 +700,6 @@ function App() {
                           <span className={`ptag ${pc(r.priceLevel)}`}>{ps(r.priceLevel)}</span>
                           {r.address && <><span className="dot" /><span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:110, fontSize:11 }}>📍 {r.address}</span></>}
                         </div>
-                        {/* Critères sur la carte */}
                         {r.criteria?.length > 0 && (
                           <div className="criteria-list" style={{ marginBottom:8 }}>
                             {r.criteria.slice(0, 3).map(c => <span key={c} className="criteria-badge" style={{ fontSize:11, padding:'2px 8px' }}>{c}</span>)}
@@ -835,16 +735,15 @@ function App() {
           <button className={`bnav-item ${page === 'restaurants' ? 'on' : ''}`} onClick={() => bnav('restaurants')}><span className="bni">🏪</span><span>Restos</span></button>
           <button className={`bnav-item ${page === 'favorites' ? 'on' : ''}`} onClick={() => bnav('favorites')}><span className="bni">❤️</span><span>Favoris</span></button>
           <button className="bnav-fab" onClick={() => bnav('add')}><div className="fab">➕</div></button>
-          <button className={`bnav-item ${showVote ? 'on' : ''}`} onClick={() => bnav('vote')}><span className="bni">🗳️</span><span>Voter</span></button>
           <button className="bnav-item" onClick={toggleTheme}><span className="bni">{dark ? '☀️' : '🌙'}</span><span>Thème</span></button>
+          <button className="bnav-item" onClick={() => bnav('account')}><span className="bni">👤</span><span>Compte</span></button>
         </div>
       </nav>
 
       {/* ── MODALS ── */}
-      {showAdd  && <RestoModal fb={fb} user={user} allCriteria={allCriteria} onClose={() => setShowAdd(false)} onToast={T} />}
-      {editR    && <RestoModal fb={fb} user={user} resto={editR} allCriteria={allCriteria} onClose={() => setEditR(null)} onToast={T} />}
-      {detailR  && <RestoDetail fb={fb} user={user} resto={detailR} onClose={() => setDetailR(null)} onToast={T} />}
-      {showVote && <VoteModal fb={fb} user={user} restaurants={restos} onClose={() => setShowVote(false)} onToast={T} />}
+      {showAdd && <RestoModal fb={fb} user={user} allCriteria={allCriteria} onClose={() => setShowAdd(false)} onToast={T} />}
+      {editR   && <RestoModal fb={fb} user={user} resto={editR} allCriteria={allCriteria} onClose={() => setEditR(null)} onToast={T} />}
+      {detailR && <RestoDetail fb={fb} user={user} resto={detailR} onClose={() => setDetailR(null)} onToast={T} />}
     </div>
   );
 }
